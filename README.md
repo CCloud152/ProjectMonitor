@@ -34,4 +34,4 @@ pip install -r requirements.txt
 3. 启动监控客户端: `python client/main.py`
 4. 启动Web界面: `python web/main.py`
 
-## project by SA25225014李嘉琦
+## project by karawink
