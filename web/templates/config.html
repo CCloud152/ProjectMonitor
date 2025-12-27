@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>配置管理 - 集群监控系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background-color: #f8f9fc;
+        }
+        .sidebar .nav-link {
+            color: #4e73df;
+        }
+        .sidebar .nav-link.active {
+            color: #fff;
+            background-color: #4e73df;
+        }
+        .card {
+            margin-bottom: 1rem;
+        }
+        .config-section {
+            margin-bottom: 2rem;
+        }
+        .config-item {
+            padding: 1rem;
+            border-radius: 0.35rem;
+            background-color: #f8f9fc;
+            margin-bottom: 1rem;
+        }
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 侧边栏 -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/index">
+                                <i class="bi bi-speedometer2"></i> 总览
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/tables">
+                                <i class="bi bi-table"></i> 客户端列表
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/data_dynamic">
+                                <i class="bi bi-graph-up"></i> 实时数据
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/data_history">
+                                <i class="bi bi-clock-history"></i> 历史数据
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/config">
+                                <i class="bi bi-gear"></i> 配置管理
+                            </a>
+                        </li>
+                        <li class="nav-item mt-4">
+                            <a class="nav-link text-danger" href="/logout">
+                                <i class="bi bi-box-arrow-right"></i> 退出登录
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- 主内容区 -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">配置管理</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="backup-btn">
+                                <i class="bi bi-cloud-download"></i> 备份配置
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="restore-btn">
+                                <i class="bi bi-cloud-upload"></i> 恢复配置
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 配置选项卡 -->
+                <ul class="nav nav-tabs" id="configTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="system-tab" data-bs-toggle="tab" data-bs-target="#system" type="button" role="tab" aria-controls="system" aria-selected="true">系统配置</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="monitor-tab" data-bs-toggle="tab" data-bs-target="#monitor" type="button" role="tab" aria-controls="monitor" aria-selected="false">监控配置</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="alert-tab" data-bs-toggle="tab" data-bs-target="#alert" type="button" role="tab" aria-controls="alert" aria-selected="false">告警配置</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="notification-tab" data-bs-toggle="tab" data-bs-target="#notification" type="button" role="tab" aria-controls="notification" aria-selected="false">通知配置</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="user-tab" data-bs-toggle="tab" data-bs-target="#user" type="button" role="tab" aria-controls="user" aria-selected="false">用户管理</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="configTabsContent">
+                    <!-- 系统配置 -->
+                    <div class="tab-pane fade show active" id="system" role="tabpanel" aria-labelledby="system-tab">
+                        <div class="config-section">
+                            <div class="card shadow">
+                                <div class="card-header py-3">
+                                    <h6 class="m-0 font-weight-bold text-primary">系统基本配置</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form id="system-config-form">
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label for="system-name" class="form-label">系统名称</label>
+                                                <input type="text" class="form-control" id="system-name" value="集群监控系统">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="system-version" class="form-label">系统版本</label>
+                                                <input type="text" class="form-control" id="system-version" value="1.0.0" readonly>
+                                            </div>
+                                        </div>
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label for="data-retention" class="form-label">数据保留天数</label>
+                                                <input type="number" class="form-control" id="data-retention" value="30" min="1">
+                                                <div class="form-text">历史数据保留天数，超过此天数的数据将被自动清理</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="collection-interval" class="form-label">数据采集间隔（秒）</label>
+                                                <input type="number" class="form-control" id="collection-interval" value="60" min="10">
+                                                <div class="form-text">客户端数据采集间隔时间（秒）</div>
+                                            </div>
+                                        </div>
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label for="max-clients" class="form-label">最大客户端数量</label>
+                                                <input type="number" class="form-control" id="max-clients" value="100" min="1">
+                                                <div class="form-text">系统支持的最大客户端连接数量</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="log-level" class="form-label">日志级别</label>
+                                                <select class="form-select" id="log-level">
+                                                    <option value="debug">Debug</option>
+                                                    <option value="info" selected>Info</option>
+                                                    <option value="warning">Warning</option>
+                                                    <option value="error">Error</option>
+                                                    <option value="critical">Critical</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="enable-auto-cleanup" checked>
+                                                <label class="form-check-label" for="enable-auto-cleanup">
+                                                    启用自动数据清理
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="enable-debug-mode">
+                                                <label class="form-check-label" for="enable-debug-mode">
+                                                    启用调试模式
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">保存系统配置</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 监控配置 -->
+                    <div class="tab-pane fade" id="monitor" role="tabpanel" aria-labelledby="monitor-tab">
+                        <div class="config-section">
+                            <div class="card shadow">
+                                <div class="card-header py-3">
+                                    <h6 class="m-0 font-weight-bold text-primary">监控阈值配置</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form id="monitor-config-form">
+                                        <div class="config-item">
+                                            <h5 class="mb-3">CPU使用率阈值</h5>
+                                            <div class="row mb-3">
+                                                <div class="col-md-4">
+                                                    <label for="cpu-warning" class="form-label">警告阈值（%）</label>
+                                                    <input type="number" class="form-control" id="cpu-warning" value="70" min="0" max="100">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label for="cpu-critical" class="form-label">严重阈值（%）</label>
+                                                    <input type="number" class="form-control" id="cpu-critical" value="90" min="0" max="100">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label for="cpu-enable" class="form-label">启用监控</label>
+                                                    <div class="form-check form-switch mt-2">
+                                                        <input class="form-check-input" type="checkbox" id="cpu-enable" checked>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="config-item">
+                                            <h5 class="mb-3">内存使用率阈值</h5>
+                                            <div class="row mb-3">
+                                                <div class="col-md-4">
+                                                    <label for="memory-warning" class="form-label">警告阈值（%）</label>
+                                                    <input type="number" class="form-control" id="memory-warning" value="80" min="0" max="100">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label for="memory-critical" class="form-label">严重阈值（%）</label>
+                                                    <input type="number" class="form-control" id="memory-critical" value="95" min="0" max="100">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label for="memory-enable" class="form-label">启用监控</label>
+                                                    <div class="form-check form-switch mt-2">
+                                                        <input class="form-check-input" type="checkbox" id="memory-enable" checked>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="config-item">
+                                            <h5 class="mb-3">磁盘使用率阈值</h5>
+                                            <div class="row mb-3">
+                                                <div class="col-md-4">
+                                                    <label for="disk-warning" class="form-label">警告阈值（%）</label>
+                                                    <input type="number" class="form-control" id="disk-warning" value="80" min="0" max="100">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label for="disk-critical" class="form-label">严重阈值（%）</label>
+                                                    <input type="number" class="form-control" id="disk-critical" value="95" min="0" max="100">
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <label for="disk-enable" class="form-label">启用监控</label>
+                                                    <div class="form-check form-switch mt-2">
+                                                        <input class="form-check-input" type="checkbox" id="disk-enable" checked>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary">保存监控配置</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 告警配置 -->
+                    <div class="tab-pane fade" id="alert" role="tabpanel" aria-labelledby="alert-tab">
+                        <div class="config-section">
+                            <div class="card shadow">
+                                <div class="card-header py-3">
+                                    <h6 class="m-0 font-weight-bold text-primary">告警规则配置</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form id="alert-config-form">
+                                        <div class="mb-3">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" id="enable-alert" checked>
+                                                <label class="form-check-label" for="enable-alert">
+                                                    启用告警功能
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="alert-cooldown" class="form-label">告警冷却时间（分钟）</label>
+                                            <input type="number" class="form-control" id="alert-cooldown" value="15" min="1">
+                                            <div class="form-text">同一告警的最小发送间隔，避免告警风暴</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="alert-consecutive" class="form-label">连续触发次数</label>
+                                            <input type="number" class="form-control" id="alert-consecutive" value="3" min="1">
+                                            <div class="form-text">阈值连续触发多少次后才发送告警</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="alert-recovery" class="form-label">恢复通知</label>
+                                            <div class="form-check form-switch mt-2">
+                                                <input class="form-check-input" type="checkbox" id="alert-recovery" checked>
+                                                <label class="form-check-label" for="alert-recovery">
+                                                    发送告警恢复通知
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">保存告警配置</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 通知配置 -->
+                    <div class="tab-pane fade" id="notification" role="tabpanel" aria-labelledby="notification-tab">
+                        <div class="config-section">
+                            <div class="card shadow">
+                                <div class="card-header py-3">
+                                    <h6 class="m-0 font-weight-bold text-primary">通知渠道配置</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form id="notification-config-form">
+                                        <div class="config-item">
+                                            <h5 class="mb-3">邮件通知</h5>
+                                            <div class="mb-3">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="email-enable">
+                                                    <label class="form-check-label" for="email-enable">
+                                                        启用邮件通知
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <label for="smtp-server" class="form-label">SMTP服务器</label>
+                                                    <input type="text" class="form-control" id="smtp-server" placeholder="smtp.example.com">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label for="smtp-port" class="form-label">SMTP端口</label>
+                                                    <input type="number" class="form-control" id="smtp-port" value="587">
+                                                </div>
+                                            </div>
+                                            <div class="row mb-3">
+                                                <div class="col-md-6">
+                                                    <label for="smtp-username" class="form-label">用户名</label>
+                                                    <input type="text" class="form-control" id="smtp-username">
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <label for="smtp-password" class="form-label">密码</label>
+                                                    <input type="password" class="form-control" id="smtp-password">
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="email-recipients" class="form-label">收件人（多个用逗号分隔）</label>
+                                                <textarea class="form-control" id="email-recipients" rows="3" placeholder="admin@example.com, user@example.com"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <div class="config-item">
+                                            <h5 class="mb-3">Webhook通知</h5>
+                                            <div class="mb-3">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox" id="webhook-enable">
+                                                    <label class="form-check-label" for="webhook-enable">
+                                                        启用Webhook通知
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="webhook-url" class="form-label">Webhook URL</label>
+                                                <input type="url" class="form-control" id="webhook-url" placeholder="https://example.com/webhook">
+                                            </div>
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary">保存通知配置</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 用户管理 -->
+                    <div class="tab-pane fade" id="user" role="tabpanel" aria-labelledby="user-tab">
+                        <div class="config-section">
+                            <div class="card shadow">
+                                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                                    <h6 class="m-0 font-weight-bold text-primary">用户管理</h6>
+                                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                                        <i class="bi bi-plus-circle"></i> 添加用户
+                                    </button>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered" id="users-table" width="100%" cellspacing="0">
+                                            <thead>
+                                                <tr>
+                                                    <th>用户名</th>
+                                                    <th>角色</th>
+                                                    <th>邮箱</th>
+                                                    <th>创建时间</th>
+                                                    <th>最后登录</th>
+                                                    <th>状态</th>
+                                                    <th>操作</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="users-tbody">
+                                                <!-- 用户数据将通过JavaScript动态加载 -->
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- 添加用户模态框 -->
+    <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addUserModalLabel">添加新用户</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-user-form">
+                        <div class="mb-3">
+                            <label for="new-username" class="form-label">用户名</label>
+                            <input type="text" class="form-control" id="new-username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="new-password" class="form-label">密码</label>
+                            <input type="password" class="form-control" id="new-password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="new-email" class="form-label">邮箱</label>
+                            <input type="email" class="form-control" id="new-email" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="new-role" class="form-label">角色</label>
+                            <select class="form-select" id="new-role">
+                                <option value="admin">管理员</option>
+                                <option value="operator">操作员</option>
+                                <option value="viewer">查看者</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="save-user-btn">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast 通知容器 -->
+    <div class="toast-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 显示Toast通知
+        function showToast(message, type = 'success') {
+            const toastContainer = document.querySelector('.toast-container');
+            const toastId = 'toast-' + Date.now();
+            
+            const toastHtml = `
+                <div id="${toastId}" class="toast align-items-center text-white bg-${type === 'success' ? 'success' : 'danger'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            ${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, { autohide: true, delay: 3000 });
+            toast.show();
+            
+            // 自动移除DOM元素
+            toastElement.addEventListener('hidden.bs.toast', function() {
+                toastElement.remove();
+            });
+        }
+        
+        // 加载配置
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config');
+                const config = await response.json();
+                
+                // 填充系统配置
+                if (config.system) {
+                    document.getElementById('system-name').value = config.system.name || '';
+                    document.getElementById('data-retention').value = config.system.data_retention || 30;
+                    document.getElementById('collection-interval').value = config.system.collection_interval || 60;
+                    document.getElementById('max-clients').value = config.system.max_clients || 100;
+                    document.getElementById('log-level').value = config.system.log_level || 'info';
+                    document.getElementById('enable-auto-cleanup').checked = config.system.enable_auto_cleanup || false;
+                    document.getElementById('enable-debug-mode').checked = config.system.enable_debug_mode || false;
+                }
+                
+                // 填充监控配置
+                if (config.monitor) {
+                    document.getElementById('cpu-warning').value = config.monitor.cpu_warning || 70;
+                    document.getElementById('cpu-critical').value = config.monitor.cpu_critical || 90;
+                    document.getElementById('cpu-enable').checked = config.monitor.cpu_enable !== false;
+                    
+                    document.getElementById('memory-warning').value = config.monitor.memory_warning || 80;
+                    document.getElementById('memory-critical').value = config.monitor.memory_critical || 95;
+                    document.getElementById('memory-enable').checked = config.monitor.memory_enable !== false;
+                    
+                    document.getElementById('disk-warning').value = config.monitor.disk_warning || 80;
+                    document.getElementById('disk-critical').value = config.monitor.disk_critical || 95;
+                    document.getElementById('disk-enable').checked = config.monitor.disk_enable !== false;
+                }
+                
+                // 填充告警配置
+                if (config.alert) {
+                    document.getElementById('enable-alert').checked = config.alert.enable !== false;
+                    document.getElementById('alert-cooldown').value = config.alert.cooldown || 15;
+                    document.getElementById('alert-consecutive').value = config.alert.consecutive || 3;
+                    document.getElementById('alert-recovery').checked = config.alert.recovery !== false;
+                }
+                
+                // 填充通知配置
+                if (config.notification) {
+                    if (config.notification.email) {
+                        document.getElementById('email-enable').checked = config.notification.email.enable || false;
+                        document.getElementById('smtp-server').value = config.notification.email.smtp_server || '';
+                        document.getElementById('smtp-port').value = config.notification.email.smtp_port || 587;
+                        document.getElementById('smtp-username').value = config.notification.email.username || '';
+                        document.getElementById('smtp-password').value = config.notification.email.password || '';
+                        document.getElementById('email-recipients').value = config.notification.email.recipients || '';
+                    }
+                    
+                    if (config.notification.webhook) {
+                        document.getElementById('webhook-enable').checked = config.notification.webhook.enable || false;
+                        document.getElementById('webhook-url').value = config.notification.webhook.url || '';
+                    }
+                }
+                
+            } catch (error) {
+                console.error('加载配置失败:', error);
+                showToast('加载配置失败', 'error');
+            }
+        }
+        
+        // 保存系统配置
+        document.getElementById('system-config-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const config = {
+                name: document.getElementById('system-name').value,
+                data_retention: parseInt(document.getElementById('data-retention').value),
+                collection_interval: parseInt(document.getElementById('collection-interval').value),
+                max_clients: parseInt(document.getElementById('max-clients').value),
+                log_level: document.getElementById('log-level').value,
+                enable_auto_cleanup: document.getElementById('enable-auto-cleanup').checked,
+                enable_debug_mode: document.getElementById('enable-debug-mode').checked
+            };
+            
+            try {
+                const response = await fetch('/api/config/system', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(config)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('系统配置保存成功');
+                } else {
+                    showToast('系统配置保存失败: ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('保存系统配置失败:', error);
+                showToast('保存系统配置失败', 'error');
+            }
+        });
+        
+        // 保存监控配置
+        document.getElementById('monitor-config-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const config = {
+                cpu_warning: parseInt(document.getElementById('cpu-warning').value),
+                cpu_critical: parseInt(document.getElementById('cpu-critical').value),
+                cpu_enable: document.getElementById('cpu-enable').checked,
+                
+                memory_warning: parseInt(document.getElementById('memory-warning').value),
+                memory_critical: parseInt(document.getElementById('memory-critical').value),
+                memory_enable: document.getElementById('memory-enable').checked,
+                
+                disk_warning: parseInt(document.getElementById('disk-warning').value),
+                disk_critical: parseInt(document.getElementById('disk-critical').value),
+                disk_enable: document.getElementById('disk-enable').checked
+            };
+            
+            try {
+                const response = await fetch('/api/config/monitor', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(config)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('监控配置保存成功');
+                } else {
+                    showToast('监控配置保存失败: ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('保存监控配置失败:', error);
+                showToast('保存监控配置失败', 'error');
+            }
+        });
+        
+        // 保存告警配置
+        document.getElementById('alert-config-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const config = {
+                enable: document.getElementById('enable-alert').checked,
+                cooldown: parseInt(document.getElementById('alert-cooldown').value),
+                consecutive: parseInt(document.getElementById('alert-consecutive').value),
+                recovery: document.getElementById('alert-recovery').checked
+            };
+            
+            try {
+                const response = await fetch('/api/config/alert', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(config)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('告警配置保存成功');
+                } else {
+                    showToast('告警配置保存失败: ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('保存告警配置失败:', error);
+                showToast('保存告警配置失败', 'error');
+            }
+        });
+        
+        // 保存通知配置
+        document.getElementById('notification-config-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const config = {
+                email: {
+                    enable: document.getElementById('email-enable').checked,
+                    smtp_server: document.getElementById('smtp-server').value,
+                    smtp_port: parseInt(document.getElementById('smtp-port').value),
+                    username: document.getElementById('smtp-username').value,
+                    password: document.getElementById('smtp-password').value,
+                    recipients: document.getElementById('email-recipients').value
+                },
+                webhook: {
+                    enable: document.getElementById('webhook-enable').checked,
+                    url: document.getElementById('webhook-url').value
+                }
+            };
+            
+            try {
+                const response = await fetch('/api/config/notification', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(config)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('通知配置保存成功');
+                } else {
+                    showToast('通知配置保存失败: ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('保存通知配置失败:', error);
+                showToast('保存通知配置失败', 'error');
+            }
+        });
+        
+        // 加载用户列表
+        async function loadUsers() {
+            try {
+                const response = await fetch('/api/users');
+                const data = await response.json();
+                
+                const tbody = document.getElementById('users-tbody');
+                tbody.innerHTML = '';
+                
+                if (data.users && data.users.length > 0) {
+                    data.users.forEach(user => {
+                        const row = document.createElement('tr');
+                        
+                        const statusBadge = user.status === 'active' 
+                            ? '<span class="badge bg-success">活跃</span>' 
+                            : '<span class="badge bg-secondary">禁用</span>';
+                        
+                        const roleText = user.role === 'admin' 
+                            ? '管理员' 
+                            : user.role === 'operator' 
+                                ? '操作员' 
+                                : '查看者';
+                        
+                        row.innerHTML = `
+                            <td>${user.username}</td>
+                            <td>${roleText}</td>
+                            <td>${user.email || '-'}</td>
+                            <td>${user.created_at ? new Date(user.created_at).toLocaleString() : '-'}</td>
+                            <td>${user.last_login ? new Date(user.last_login).toLocaleString() : '-'}</td>
+                            <td>${statusBadge}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-primary" onclick="editUser('${user.id}')">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" onclick="deleteUser('${user.id}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        `;
+                        
+                        tbody.appendChild(row);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center">暂无用户数据</td></tr>';
+                }
+            } catch (error) {
+                console.error('加载用户列表失败:', error);
+                document.getElementById('users-tbody').innerHTML = '<tr><td colspan="7" class="text-center text-danger">加载用户列表失败</td></tr>';
+            }
+        }
+        
+        // 保存新用户
+        document.getElementById('save-user-btn').addEventListener('click', async function() {
+            const username = document.getElementById('new-username').value;
+            const password = document.getElementById('new-password').value;
+            const email = document.getElementById('new-email').value;
+            const role = document.getElementById('new-role').value;
+            
+            if (!username || !password || !email) {
+                showToast('请填写完整的用户信息', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username,
+                        password,
+                        email,
+                        role
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('用户添加成功');
+                    
+                    // 关闭模态框
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('addUserModal'));
+                    modal.hide();
+                    
+                    // 清空表单
+                    document.getElementById('add-user-form').reset();
+                    
+                    // 刷新用户列表
+                    loadUsers();
+                } else {
+                    showToast('用户添加失败: ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('添加用户失败:', error);
+                showToast('添加用户失败', 'error');
+            }
+        });
+        
+        // 编辑用户
+        function editUser(userId) {
+            // 实现编辑用户功能
+            alert(`编辑用户 ${userId} 的功能待实现`);
+        }
+        
+        // 删除用户
+        async function deleteUser(userId) {
+            if (!confirm('确定要删除此用户吗？')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/users/${userId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('用户删除成功');
+                    loadUsers();
+                } else {
+                    showToast('用户删除失败: ' + result.message, 'error');
+                }
+            } catch (error) {
+                console.error('删除用户失败:', error);
+                showToast('删除用户失败', 'error');
+            }
+        }
+        
+        // 备份配置
+        document.getElementById('backup-btn').addEventListener('click', async function() {
+            try {
+                const response = await fetch('/api/config/backup');
+                const blob = await response.blob();
+                
+                // 创建下载链接
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'monitor-config-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                
+                showToast('配置备份成功');
+            } catch (error) {
+                console.error('备份配置失败:', error);
+                showToast('备份配置失败', 'error');
+            }
+        });
+        
+        // 恢复配置
+        document.getElementById('restore-btn').addEventListener('click', function() {
+            // 创建文件输入元素
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = async function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                try {
+                    const formData = new FormData();
+                    formData.append('config', file);
+                    
+                    const response = await fetch('/api/config/restore', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        showToast('配置恢复成功，请刷新页面');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    } else {
+                        showToast('配置恢复失败: ' + result.message, 'error');
+                    }
+                } catch (error) {
+                    console.error('恢复配置失败:', error);
+                    showToast('恢复配置失败', 'error');
+                }
+            };
+            
+            input.click();
+        });
+        
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 加载配置
+            loadConfig();
+            
+            // 如果用户管理标签页被激活，加载用户列表
+            document.getElementById('user-tab').addEventListener('shown.bs.tab', function() {
+                loadUsers();
+            });
+        });
+    </script>
+</body>
+</html>

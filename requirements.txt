@@ -1,0 +1,11 @@
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+sqlalchemy==2.0.23
+psutil==5.9.6
+pydantic==2.5.0
+requests==2.31.0
+aiofiles==23.2.1
+python-multipart==0.0.6
+jinja2==3.1.2
+aiosqlite==0.19.0
+asyncio-mqtt==0.16.1

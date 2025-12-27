@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>客户端列表 - 集群监控系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background-color: #f8f9fc;
+        }
+        .sidebar .nav-link {
+            color: #4e73df;
+        }
+        .sidebar .nav-link.active {
+            color: #fff;
+            background-color: #4e73df;
+        }
+        .card {
+            margin-bottom: 1rem;
+        }
+        .status-online {
+            color: #1cc88a;
+        }
+        .status-offline {
+            color: #e74a3b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 侧边栏 -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/index">
+                                <i class="bi bi-speedometer2"></i> 总览
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/tables">
+                                <i class="bi bi-table"></i> 客户端列表
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/data_dynamic">
+                                <i class="bi bi-graph-up"></i> 实时数据
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/data_history">
+                                <i class="bi bi-clock-history"></i> 历史数据
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/config">
+                                <i class="bi bi-gear"></i> 配置管理
+                            </a>
+                        </li>
+                        <li class="nav-item mt-4">
+                            <a class="nav-link text-danger" href="/logout">
+                                <i class="bi bi-box-arrow-right"></i> 退出登录
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- 主内容区 -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">客户端列表</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="refresh-btn">
+                                <i class="bi bi-arrow-clockwise"></i> 刷新
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="export-btn">
+                                <i class="bi bi-download"></i> 导出
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 客户端统计卡片 -->
+                <div class="row mb-4">
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-primary shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                            总客户端数
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-count">0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-laptop text-primary" style="font-size: 2rem;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-success shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                            在线客户端
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="online-count">0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-warning shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                            离线客户端
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="offline-count">0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-x-circle text-warning" style="font-size: 2rem;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-info shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                            平均CPU使用率
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="avg-cpu">0%</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-cpu text-info" style="font-size: 2rem;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 客户端列表表格 -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">客户端详细信息</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="clients-table" width="100%" cellspacing="0">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>名称</th>
+                                        <th>IP地址</th>
+                                        <th>状态</th>
+                                        <th>CPU使用率</th>
+                                        <th>内存使用率</th>
+                                        <th>磁盘使用率</th>
+                                        <th>操作系统</th>
+                                        <th>最后上报时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="clients-tbody">
+                                    <!-- 客户端数据将通过JavaScript动态加载 -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 加载客户端数据
+        async function loadClientsData() {
+            try {
+                const response = await fetch('/api/clients');
+                const data = await response.json();
+                
+                // 更新统计卡片
+                document.getElementById('total-count').textContent = data.total || 0;
+                document.getElementById('online-count').textContent = data.online || 0;
+                document.getElementById('offline-count').textContent = data.offline || 0;
+                document.getElementById('avg-cpu').textContent = data.avg_cpu ? data.avg_cpu.toFixed(1) + '%' : '0%';
+                
+                // 更新表格数据
+                const tbody = document.getElementById('clients-tbody');
+                tbody.innerHTML = '';
+                
+                if (data.clients && data.clients.length > 0) {
+                    data.clients.forEach(client => {
+                        const row = document.createElement('tr');
+                        
+                        const statusClass = client.status === 'online' ? 'status-online' : 'status-offline';
+                        const statusIcon = client.status === 'online' ? 'check-circle-fill' : 'x-circle-fill';
+                        const statusText = client.status === 'online' ? '在线' : '离线';
+                        
+                        row.innerHTML = `
+                            <td>${client.id}</td>
+                            <td>${client.name || '-'}</td>
+                            <td>${client.ip || '-'}</td>
+                            <td><i class="bi bi-${statusIcon} ${statusClass}"></i> ${statusText}</td>
+                            <td>${client.cpu_usage ? client.cpu_usage.toFixed(1) + '%' : '-'}</td>
+                            <td>${client.memory_usage ? client.memory_usage.toFixed(1) + '%' : '-'}</td>
+                            <td>${client.disk_usage ? client.disk_usage.toFixed(1) + '%' : '-'}</td>
+                            <td>${client.os || '-'}</td>
+                            <td>${client.last_report || '-'}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-primary" onclick="viewDetails('${client.id}')">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-warning" onclick="sendCommand('${client.id}')">
+                                        <i class="bi bi-terminal"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        `;
+                        
+                        tbody.appendChild(row);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="10" class="text-center">暂无客户端数据</td></tr>';
+                }
+            } catch (error) {
+                console.error('加载客户端数据失败:', error);
+                document.getElementById('clients-tbody').innerHTML = '<tr><td colspan="10" class="text-center text-danger">加载数据失败</td></tr>';
+            }
+        }
+        
+        // 查看客户端详情
+        function viewDetails(clientId) {
+            // 实现查看详情功能
+            alert(`查看客户端 ${clientId} 的详细信息`);
+        }
+        
+        // 发送命令
+        function sendCommand(clientId) {
+            // 实现发送命令功能
+            const command = prompt(`请输入要发送给客户端 ${clientId} 的命令:`);
+            if (command) {
+                // 发送命令到服务器
+                fetch(`/api/clients/${clientId}/command`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ command: command })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('命令发送成功');
+                    } else {
+                        alert('命令发送失败: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('发送命令失败:', error);
+                    alert('发送命令失败');
+                });
+            }
+        }
+        
+        // 刷新按钮
+        document.getElementById('refresh-btn').addEventListener('click', function() {
+            loadClientsData();
+        });
+        
+        // 导出按钮
+        document.getElementById('export-btn').addEventListener('click', function() {
+            // 实现导出功能
+            alert('导出功能待实现');
+        });
+        
+        // 页面加载时获取数据
+        document.addEventListener('DOMContentLoaded', function() {
+            loadClientsData();
+            
+            // 每30秒自动刷新一次数据
+            setInterval(loadClientsData, 30000);
+        });
+    </script>
+</body>
+</html>

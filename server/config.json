@@ -1,0 +1,19 @@
+{
+  "service": {
+    "name": "Overwatch Server Service",
+    "host": "0.0.0.0",
+    "port": 10641,
+    "debug": true
+  },
+  "register": {
+    "host": "127.0.0.1",
+    "port": 10640
+  },
+  "storage": {
+    "max_reports_per_client": 1000
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  }
+}

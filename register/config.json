@@ -1,0 +1,12 @@
+{
+  "service": {
+    "name": "Overwatch Register Service",
+    "host": "0.0.0.0",
+    "port": 10640,
+    "debug": true
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "client": {
+    "report_interval": 1,
+    "reconnect_interval": 5
+  },
+  "register": {
+    "host": "127.0.0.1",
+    "port": 10640
+  },
+  "server": {
+    "default_port": 10641
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  }
+}

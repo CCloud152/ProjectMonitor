@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实时数据 - 集群监控系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background-color: #f8f9fc;
+        }
+        .sidebar .nav-link {
+            color: #4e73df;
+        }
+        .sidebar .nav-link.active {
+            color: #fff;
+            background-color: #4e73df;
+        }
+        .card {
+            margin-bottom: 1rem;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        .metric-card {
+            transition: all 0.3s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 侧边栏 -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/index">
+                                <i class="bi bi-speedometer2"></i> 总览
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/tables">
+                                <i class="bi bi-table"></i> 客户端列表
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/data_dynamic">
+                                <i class="bi bi-graph-up"></i> 实时数据
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/data_history">
+                                <i class="bi bi-clock-history"></i> 历史数据
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/config">
+                                <i class="bi bi-gear"></i> 配置管理
+                            </a>
+                        </li>
+                        <li class="nav-item mt-4">
+                            <a class="nav-link text-danger" href="/logout">
+                                <i class="bi bi-box-arrow-right"></i> 退出登录
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- 主内容区 -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">实时数据</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="pause-btn">
+                                <i class="bi bi-pause-fill"></i> 暂停
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="fullscreen-btn">
+                                <i class="bi bi-fullscreen"></i> 全屏
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 实时状态指示器 -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card shadow">
+                            <div class="card-body py-2">
+                                <div class="d-flex align-items-center">
+                                    <span class="badge bg-success me-2" id="connection-status">
+                                        <i class="bi bi-circle-fill"></i> 连接正常
+                                    </span>
+                                    <span class="text-muted small">最后更新: <span id="last-update">-</span></span>
+                                    <div class="ms-auto">
+                                        <span class="text-muted small">刷新间隔: <span id="refresh-interval">5</span>秒</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 系统概览指标卡片 -->
+                <div class="row mb-4">
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-primary shadow h-100 py-2 metric-card">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                            集群CPU使用率
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="cluster-cpu">0%</div>
+                                        <div class="mt-2">
+                                            <div class="progress" style="height: 5px;">
+                                                <div class="progress-bar bg-primary" id="cluster-cpu-bar" role="progressbar" style="width: 0%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-cpu text-primary" style="font-size: 2rem;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-success shadow h-100 py-2 metric-card">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                            集群内存使用率
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="cluster-memory">0%</div>
+                                        <div class="mt-2">
+                                            <div class="progress" style="height: 5px;">
+                                                <div class="progress-bar bg-success" id="cluster-memory-bar" role="progressbar" style="width: 0%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-memory text-success" style="font-size: 2rem;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-warning shadow h-100 py-2 metric-card">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                            集群磁盘使用率
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="cluster-disk">0%</div>
+                                        <div class="mt-2">
+                                            <div class="progress" style="height: 5px;">
+                                                <div class="progress-bar bg-warning" id="cluster-disk-bar" role="progressbar" style="width: 0%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-hdd text-warning" style="font-size: 2rem;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-info shadow h-100 py-2 metric-card">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                            网络流量
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="network-traffic">0 MB/s</div>
+                                        <div class="mt-2 text-xs text-muted">
+                                            <span id="network-in">↓ 0 MB/s</span> / <span id="network-out">↑ 0 MB/s</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-wifi text-info" style="font-size: 2rem;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 实时图表 -->
+                <div class="row">
+                    <!-- CPU使用率趋势图 -->
+                    <div class="col-xl-6 col-lg-6 mb-4">
+                        <div class="card shadow">
+                            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                                <h6 class="m-0 font-weight-bold text-primary">CPU使用率趋势</h6>
+                                <div class="dropdown no-arrow">
+                                    <a class="dropdown-toggle" href="#" role="button" id="cpuDropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </a>
+                                    <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" aria-labelledby="cpuDropdown">
+                                        <a class="dropdown-item" href="#" onclick="changeTimeRange('cpu', '1h')">1小时</a>
+                                        <a class="dropdown-item" href="#" onclick="changeTimeRange('cpu', '6h')">6小时</a>
+                                        <a class="dropdown-item" href="#" onclick="changeTimeRange('cpu', '24h')">24小时</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="cpuChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 内存使用率趋势图 -->
+                    <div class="col-xl-6 col-lg-6 mb-4">
+                        <div class="card shadow">
+                            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                                <h6 class="m-0 font-weight-bold text-success">内存使用率趋势</h6>
+                                <div class="dropdown no-arrow">
+                                    <a class="dropdown-toggle" href="#" role="button" id="memoryDropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </a>
+                                    <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" aria-labelledby="memoryDropdown">
+                                        <a class="dropdown-item" href="#" onclick="changeTimeRange('memory', '1h')">1小时</a>
+                                        <a class="dropdown-item" href="#" onclick="changeTimeRange('memory', '6h')">6小时</a>
+                                        <a class="dropdown-item" href="#" onclick="changeTimeRange('memory', '24h')">24小时</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="memoryChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 磁盘使用率趋势图 -->
+                    <div class="col-xl-6 col-lg-6 mb-4">
+                        <div class="card shadow">
+                            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                                <h6 class="m-0 font-weight-bold text-warning">磁盘使用率趋势</h6>
+                                <div class="dropdown no-arrow">
+                                    <a class="dropdown-toggle" href="#" role="button" id="diskDropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </a>
+                                    <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" aria-labelledby="diskDropdown">
+                                        <a class="dropdown-item" href="#" onclick="changeTimeRange('disk', '1h')">1小时</a>
+                                        <a class="dropdown-item" href="#" onclick="changeTimeRange('disk', '6h')">6小时</a>
+                                        <a class="dropdown-item" href="#" onclick="changeTimeRange('disk', '24h')">24小时</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="diskChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 网络流量趋势图 -->
+                    <div class="col-xl-6 col-lg-6 mb-4">
+                        <div class="card shadow">
+                            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                                <h6 class="m-0 font-weight-bold text-info">网络流量趋势</h6>
+                                <div class="dropdown no-arrow">
+                                    <a class="dropdown-toggle" href="#" role="button" id="networkDropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </a>
+                                    <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" aria-labelledby="networkDropdown">
+                                        <a class="dropdown-item" href="#" onclick="changeTimeRange('network', '1h')">1小时</a>
+                                        <a class="dropdown-item" href="#" onclick="changeTimeRange('network', '6h')">6小时</a>
+                                        <a class="dropdown-item" href="#" onclick="changeTimeRange('network', '24h')">24小时</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="networkChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 全局变量
+        let isPaused = false;
+        let refreshInterval = 5000; // 5秒
+        let intervalId;
+        let charts = {};
+        
+        // 初始化图表
+        function initCharts() {
+            // CPU使用率图表
+            const cpuCtx = document.getElementById('cpuChart').getContext('2d');
+            charts.cpu = new Chart(cpuCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'CPU使用率 (%)',
+                        data: [],
+                        backgroundColor: 'rgba(78, 115, 223, 0.05)',
+                        borderColor: 'rgba(78, 115, 223, 1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 3,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            display: true,
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            display: true,
+                            min: 0,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return 'CPU: ' + context.parsed.y.toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 内存使用率图表
+            const memoryCtx = document.getElementById('memoryChart').getContext('2d');
+            charts.memory = new Chart(memoryCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '内存使用率 (%)',
+                        data: [],
+                        backgroundColor: 'rgba(28, 200, 138, 0.05)',
+                        borderColor: 'rgba(28, 200, 138, 1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 3,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            display: true,
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            display: true,
+                            min: 0,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return '内存: ' + context.parsed.y.toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 磁盘使用率图表
+            const diskCtx = document.getElementById('diskChart').getContext('2d');
+            charts.disk = new Chart(diskCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '磁盘使用率 (%)',
+                        data: [],
+                        backgroundColor: 'rgba(246, 194, 62, 0.05)',
+                        borderColor: 'rgba(246, 194, 62, 1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        pointHoverRadius: 3,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            display: true,
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            display: true,
+                            min: 0,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return '磁盘: ' + context.parsed.y.toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 网络流量图表
+            const networkCtx = document.getElementById('networkChart').getContext('2d');
+            charts.network = new Chart(networkCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: '入站流量 (MB/s)',
+                            data: [],
+                            backgroundColor: 'rgba(23, 162, 184, 0.05)',
+                            borderColor: 'rgba(23, 162, 184, 1)',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 3,
+                            tension: 0.3
+                        },
+                        {
+                            label: '出站流量 (MB/s)',
+                            data: [],
+                            backgroundColor: 'rgba(255, 99, 132, 0.05)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            pointHoverRadius: 3,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            display: true,
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            display: true,
+                            min: 0,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + ' MB/s';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' MB/s';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 更新实时数据
+        async function updateRealtimeData() {
+            if (isPaused) return;
+            
+            try {
+                const response = await fetch('/api/realtime');
+                const data = await response.json();
+                
+                // 更新最后更新时间
+                document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+                
+                // 更新集群指标
+                if (data.cluster) {
+                    document.getElementById('cluster-cpu').textContent = data.cluster.cpu ? data.cluster.cpu.toFixed(1) + '%' : '0%';
+                    document.getElementById('cluster-memory').textContent = data.cluster.memory ? data.cluster.memory.toFixed(1) + '%' : '0%';
+                    document.getElementById('cluster-disk').textContent = data.cluster.disk ? data.cluster.disk.toFixed(1) + '%' : '0%';
+                    document.getElementById('network-traffic').textContent = data.cluster.network ? data.cluster.network.toFixed(2) + ' MB/s' : '0 MB/s';
+                    
+                    document.getElementById('network-in').textContent = '↓ ' + (data.cluster.network_in ? data.cluster.network_in.toFixed(2) + ' MB/s' : '0 MB/s');
+                    document.getElementById('network-out').textContent = '↑ ' + (data.cluster.network_out ? data.cluster.network_out.toFixed(2) + ' MB/s' : '0 MB/s');
+                    
+                    // 更新进度条
+                    document.getElementById('cluster-cpu-bar').style.width = (data.cluster.cpu || 0) + '%';
+                    document.getElementById('cluster-memory-bar').style.width = (data.cluster.memory || 0) + '%';
+                    document.getElementById('cluster-disk-bar').style.width = (data.cluster.disk || 0) + '%';
+                }
+                
+                // 更新图表数据
+                if (data.time_series) {
+                    updateCharts(data.time_series);
+                }
+                
+                // 更新连接状态
+                document.getElementById('connection-status').className = 'badge bg-success me-2';
+                document.getElementById('connection-status').innerHTML = '<i class="bi bi-circle-fill"></i> 连接正常';
+                
+            } catch (error) {
+                console.error('获取实时数据失败:', error);
+                document.getElementById('connection-status').className = 'badge bg-danger me-2';
+                document.getElementById('connection-status').innerHTML = '<i class="bi bi-circle-fill"></i> 连接失败';
+            }
+        }
+        
+        // 更新图表
+        function updateCharts(timeSeriesData) {
+            const maxDataPoints = 60; // 显示最近60个数据点
+            
+            // 更新CPU图表
+            if (timeSeriesData.cpu && charts.cpu) {
+                const labels = timeSeriesData.cpu.map(item => new Date(item.timestamp).toLocaleTimeString());
+                const data = timeSeriesData.cpu.map(item => item.value);
+                
+                // 限制数据点数量
+                if (labels.length > maxDataPoints) {
+                    labels.splice(0, labels.length - maxDataPoints);
+                    data.splice(0, data.length - maxDataPoints);
+                }
+                
+                charts.cpu.data.labels = labels;
+                charts.cpu.data.datasets[0].data = data;
+                charts.cpu.update('none'); // 无动画更新
+            }
+            
+            // 更新内存图表
+            if (timeSeriesData.memory && charts.memory) {
+                const labels = timeSeriesData.memory.map(item => new Date(item.timestamp).toLocaleTimeString());
+                const data = timeSeriesData.memory.map(item => item.value);
+                
+                if (labels.length > maxDataPoints) {
+                    labels.splice(0, labels.length - maxDataPoints);
+                    data.splice(0, data.length - maxDataPoints);
+                }
+                
+                charts.memory.data.labels = labels;
+                charts.memory.data.datasets[0].data = data;
+                charts.memory.update('none');
+            }
+            
+            // 更新磁盘图表
+            if (timeSeriesData.disk && charts.disk) {
+                const labels = timeSeriesData.disk.map(item => new Date(item.timestamp).toLocaleTimeString());
+                const data = timeSeriesData.disk.map(item => item.value);
+                
+                if (labels.length > maxDataPoints) {
+                    labels.splice(0, labels.length - maxDataPoints);
+                    data.splice(0, data.length - maxDataPoints);
+                }
+                
+                charts.disk.data.labels = labels;
+                charts.disk.data.datasets[0].data = data;
+                charts.disk.update('none');
+            }
+            
+            // 更新网络图表
+            if (timeSeriesData.network && charts.network) {
+                const labels = timeSeriesData.network.map(item => new Date(item.timestamp).toLocaleTimeString());
+                const inData = timeSeriesData.network.map(item => item.in);
+                const outData = timeSeriesData.network.map(item => item.out);
+                
+                if (labels.length > maxDataPoints) {
+                    labels.splice(0, labels.length - maxDataPoints);
+                    inData.splice(0, inData.length - maxDataPoints);
+                    outData.splice(0, outData.length - maxDataPoints);
+                }
+                
+                charts.network.data.labels = labels;
+                charts.network.data.datasets[0].data = inData;
+                charts.network.data.datasets[1].data = outData;
+                charts.network.update('none');
+            }
+        }
+        
+        // 暂停/继续按钮
+        document.getElementById('pause-btn').addEventListener('click', function() {
+            isPaused = !isPaused;
+            if (isPaused) {
+                this.innerHTML = '<i class="bi bi-play-fill"></i> 继续';
+                this.classList.remove('btn-outline-secondary');
+                this.classList.add('btn-outline-success');
+            } else {
+                this.innerHTML = '<i class="bi bi-pause-fill"></i> 暂停';
+                this.classList.remove('btn-outline-success');
+                this.classList.add('btn-outline-secondary');
+            }
+        });
+        
+        // 全屏按钮
+        document.getElementById('fullscreen-btn').addEventListener('click', function() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+                this.innerHTML = '<i class="bi bi-fullscreen-exit"></i> 退出全屏';
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                    this.innerHTML = '<i class="bi bi-fullscreen"></i> 全屏';
+                }
+            }
+        });
+        
+        // 更改时间范围
+        function changeTimeRange(chartType, range) {
+            // 实现更改时间范围功能
+            console.log(`更改 ${chartType} 图表时间范围为 ${range}`);
+            // 这里可以发送请求到服务器获取不同时间范围的数据
+        }
+        
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化图表
+            initCharts();
+            
+            // 立即更新一次数据
+            updateRealtimeData();
+            
+            // 设置定时更新
+            intervalId = setInterval(updateRealtimeData, refreshInterval);
+            
+            // 页面卸载时清理
+            window.addEventListener('beforeunload', function() {
+                if (intervalId) {
+                    clearInterval(intervalId);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

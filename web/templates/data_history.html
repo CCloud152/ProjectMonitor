@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>历史数据 - 集群监控系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background-color: #f8f9fc;
+        }
+        .sidebar .nav-link {
+            color: #4e73df;
+        }
+        .sidebar .nav-link.active {
+            color: #fff;
+            background-color: #4e73df;
+        }
+        .card {
+            margin-bottom: 1rem;
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+        }
+        .date-range-picker {
+            background-color: #fff;
+        }
+        .table-responsive {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 侧边栏 -->
+            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/index">
+                                <i class="bi bi-speedometer2"></i> 总览
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/tables">
+                                <i class="bi bi-table"></i> 客户端列表
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/data_dynamic">
+                                <i class="bi bi-graph-up"></i> 实时数据
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/data_history">
+                                <i class="bi bi-clock-history"></i> 历史数据
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/config">
+                                <i class="bi bi-gear"></i> 配置管理
+                            </a>
+                        </li>
+                        <li class="nav-item mt-4">
+                            <a class="nav-link text-danger" href="/logout">
+                                <i class="bi bi-box-arrow-right"></i> 退出登录
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- 主内容区 -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">历史数据</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="export-btn">
+                                <i class="bi bi-download"></i> 导出
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 时间范围选择器 -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">查询条件</h6>
+                    </div>
+                    <div class="card-body">
+                        <form id="query-form">
+                            <div class="row">
+                                <div class="col-md-3 mb-3">
+                                    <label for="client-select" class="form-label">客户端</label>
+                                    <select class="form-select" id="client-select">
+                                        <option value="">全部客户端</option>
+                                        <!-- 客户端选项将通过JavaScript动态加载 -->
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="date-range" class="form-label">时间范围</label>
+                                    <input type="text" class="form-control date-range-picker" id="date-range" placeholder="选择时间范围">
+                                </div>
+                                <div class="col-md-3 mb-3">
+                                    <label for="metric-select" class="form-label">指标类型</label>
+                                    <select class="form-select" id="metric-select">
+                                        <option value="all">全部指标</option>
+                                        <option value="cpu">CPU使用率</option>
+                                        <option value="memory">内存使用率</option>
+                                        <option value="disk">磁盘使用率</option>
+                                        <option value="network">网络流量</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2 mb-3 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="bi bi-search"></i> 查询
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="btn-group" role="group">
+                                        <input type="radio" class="btn-check" name="quick-range" id="range-1h" autocomplete="off">
+                                        <label class="btn btn-outline-primary" for="range-1h">最近1小时</label>
+                                        
+                                        <input type="radio" class="btn-check" name="quick-range" id="range-6h" autocomplete="off">
+                                        <label class="btn btn-outline-primary" for="range-6h">最近6小时</label>
+                                        
+                                        <input type="radio" class="btn-check" name="quick-range" id="range-24h" autocomplete="off">
+                                        <label class="btn btn-outline-primary" for="range-24h">最近24小时</label>
+                                        
+                                        <input type="radio" class="btn-check" name="quick-range" id="range-7d" autocomplete="off">
+                                        <label class="btn btn-outline-primary" for="range-7d">最近7天</label>
+                                        
+                                        <input type="radio" class="btn-check" name="quick-range" id="range-30d" autocomplete="off">
+                                        <label class="btn btn-outline-primary" for="range-30d">最近30天</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 数据统计卡片 -->
+                <div class="row mb-4">
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-primary shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                            平均CPU使用率
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="avg-cpu">0%</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-cpu text-primary" style="font-size: 2rem;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-success shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                            平均内存使用率
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="avg-memory">0%</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-memory text-success" style="font-size: 2rem;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-warning shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                            平均磁盘使用率
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="avg-disk">0%</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-hdd text-warning" style="font-size: 2rem;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-info shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                            总网络流量
+                                        </div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-network">0 GB</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-wifi text-info" style="font-size: 2rem;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 历史数据图表 -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                        <h6 class="m-0 font-weight-bold text-primary">历史数据趋势</h6>
+                        <div class="dropdown no-arrow">
+                            <a class="dropdown-toggle" href="#" role="button" id="chartTypeDropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" aria-labelledby="chartTypeDropdown">
+                                <a class="dropdown-item" href="#" onclick="changeChartType('line')">折线图</a>
+                                <a class="dropdown-item" href="#" onclick="changeChartType('bar')">柱状图</a>
+                                <a class="dropdown-item" href="#" onclick="changeChartType('area')">面积图</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="historyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 历史数据表格 -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">详细数据</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="history-table" width="100%" cellspacing="0">
+                                <thead>
+                                    <tr>
+                                        <th>时间</th>
+                                        <th>客户端</th>
+                                        <th>CPU使用率</th>
+                                        <th>内存使用率</th>
+                                        <th>磁盘使用率</th>
+                                        <th>网络入站</th>
+                                        <th>网络出站</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="history-tbody">
+                                    <!-- 历史数据将通过JavaScript动态加载 -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <nav aria-label="数据表格分页">
+                            <ul class="pagination justify-content-center" id="pagination">
+                                <!-- 分页将通过JavaScript动态生成 -->
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 全局变量
+        let historyChart;
+        let currentPage = 1;
+        let pageSize = 20;
+        let totalRecords = 0;
+        let currentQuery = {
+            clientId: '',
+            startTime: null,
+            endTime: null,
+            metric: 'all'
+        };
+        
+        // 初始化日期范围选择器
+        flatpickr("#date-range", {
+            mode: "range",
+            dateFormat: "Y-m-d",
+            locale: "zh",
+            defaultDate: [
+                new Date().setDate(new Date().getDate() - 1),
+                new Date()
+            ],
+            onChange: function(selectedDates, dateStr, instance) {
+                if (selectedDates.length === 2) {
+                    currentQuery.startTime = selectedDates[0];
+                    currentQuery.endTime = selectedDates[1];
+                }
+            }
+        });
+        
+        // 初始化图表
+        function initChart() {
+            const ctx = document.getElementById('historyChart').getContext('2d');
+            historyChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            display: true,
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            display: true,
+                            min: 0,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 加载客户端列表
+        async function loadClients() {
+            try {
+                const response = await fetch('/api/clients');
+                const data = await response.json();
+                
+                const clientSelect = document.getElementById('client-select');
+                clientSelect.innerHTML = '<option value="">全部客户端</option>';
+                
+                if (data.clients && data.clients.length > 0) {
+                    data.clients.forEach(client => {
+                        const option = document.createElement('option');
+                        option.value = client.id;
+                        option.textContent = `${client.name || client.id} (${client.ip})`;
+                        clientSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('加载客户端列表失败:', error);
+            }
+        }
+        
+        // 查询历史数据
+        async function queryHistory() {
+            try {
+                // 构建查询参数
+                const params = new URLSearchParams();
+                if (currentQuery.clientId) params.append('client_id', currentQuery.clientId);
+                if (currentQuery.startTime) params.append('start_time', currentQuery.startTime.toISOString());
+                if (currentQuery.endTime) params.append('end_time', currentQuery.endTime.toISOString());
+                if (currentQuery.metric !== 'all') params.append('metric', currentQuery.metric);
+                params.append('page', currentPage);
+                params.append('page_size', pageSize);
+                
+                const response = await fetch(`/api/history?${params}`);
+                const data = await response.json();
+                
+                // 更新统计卡片
+                if (data.statistics) {
+                    document.getElementById('avg-cpu').textContent = data.statistics.avg_cpu ? data.statistics.avg_cpu.toFixed(1) + '%' : '0%';
+                    document.getElementById('avg-memory').textContent = data.statistics.avg_memory ? data.statistics.avg_memory.toFixed(1) + '%' : '0%';
+                    document.getElementById('avg-disk').textContent = data.statistics.avg_disk ? data.statistics.avg_disk.toFixed(1) + '%' : '0%';
+                    document.getElementById('total-network').textContent = data.statistics.total_network ? (data.statistics.total_network / 1024).toFixed(2) + ' GB' : '0 GB';
+                }
+                
+                // 更新图表
+                if (data.chart_data) {
+                    updateChart(data.chart_data);
+                }
+                
+                // 更新表格
+                if (data.records) {
+                    updateTable(data.records);
+                }
+                
+                // 更新分页
+                if (data.pagination) {
+                    updatePagination(data.pagination);
+                }
+                
+            } catch (error) {
+                console.error('查询历史数据失败:', error);
+                alert('查询历史数据失败，请稍后重试');
+            }
+        }
+        
+        // 更新图表
+        function updateChart(chartData) {
+            if (!historyChart) return;
+            
+            // 清空现有数据
+            historyChart.data.labels = [];
+            historyChart.data.datasets = [];
+            
+            // 设置时间标签
+            historyChart.data.labels = chartData.labels;
+            
+            // 添加数据集
+            if (currentQuery.metric === 'all' || currentQuery.metric === 'cpu') {
+                historyChart.data.datasets.push({
+                    label: 'CPU使用率 (%)',
+                    data: chartData.cpu,
+                    borderColor: 'rgba(78, 115, 223, 1)',
+                    backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: false
+                });
+            }
+            
+            if (currentQuery.metric === 'all' || currentQuery.metric === 'memory') {
+                historyChart.data.datasets.push({
+                    label: '内存使用率 (%)',
+                    data: chartData.memory,
+                    borderColor: 'rgba(28, 200, 138, 1)',
+                    backgroundColor: 'rgba(28, 200, 138, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: false
+                });
+            }
+            
+            if (currentQuery.metric === 'all' || currentQuery.metric === 'disk') {
+                historyChart.data.datasets.push({
+                    label: '磁盘使用率 (%)',
+                    data: chartData.disk,
+                    borderColor: 'rgba(246, 194, 62, 1)',
+                    backgroundColor: 'rgba(246, 194, 62, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: false
+                });
+            }
+            
+            // 网络流量需要单独处理，因为单位不同
+            if (currentQuery.metric === 'all' || currentQuery.metric === 'network') {
+                historyChart.options.scales.y.max = undefined; // 移除最大值限制
+                historyChart.options.scales.y.ticks.callback = function(value) {
+                    return value + ' MB/s';
+                };
+                
+                historyChart.data.datasets.push({
+                    label: '网络入站 (MB/s)',
+                    data: chartData.network_in,
+                    borderColor: 'rgba(23, 162, 184, 1)',
+                    backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: false
+                });
+                
+                historyChart.data.datasets.push({
+                    label: '网络出站 (MB/s)',
+                    data: chartData.network_out,
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.3,
+                    fill: false
+                });
+            } else {
+                // 恢复百分比显示
+                historyChart.options.scales.y.max = 100;
+                historyChart.options.scales.y.ticks.callback = function(value) {
+                    return value + '%';
+                };
+            }
+            
+            historyChart.update();
+        }
+        
+        // 更新表格
+        function updateTable(records) {
+            const tbody = document.getElementById('history-tbody');
+            tbody.innerHTML = '';
+            
+            if (records && records.length > 0) {
+                records.forEach(record => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${new Date(record.timestamp).toLocaleString()}</td>
+                        <td>${record.client_name || record.client_id}</td>
+                        <td>${record.cpu_usage ? record.cpu_usage.toFixed(1) + '%' : '-'}</td>
+                        <td>${record.memory_usage ? record.memory_usage.toFixed(1) + '%' : '-'}</td>
+                        <td>${record.disk_usage ? record.disk_usage.toFixed(1) + '%' : '-'}</td>
+                        <td>${record.network_in ? record.network_in.toFixed(2) + ' MB/s' : '-'}</td>
+                        <td>${record.network_out ? record.network_out.toFixed(2) + ' MB/s' : '-'}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">暂无数据</td></tr>';
+            }
+        }
+        
+        // 更新分页
+        function updatePagination(pagination) {
+            const paginationElement = document.getElementById('pagination');
+            paginationElement.innerHTML = '';
+            
+            if (!pagination || pagination.total_pages <= 1) return;
+            
+            // 上一页
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item ${pagination.current_page === 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = `<a class="page-link" href="#" tabindex="-1" aria-disabled="true">上一页</a>`;
+            prevLi.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (pagination.current_page > 1) {
+                    currentPage = pagination.current_page - 1;
+                    queryHistory();
+                }
+            });
+            paginationElement.appendChild(prevLi);
+            
+            // 页码
+            for (let i = 1; i <= pagination.total_pages; i++) {
+                const pageLi = document.createElement('li');
+                pageLi.className = `page-item ${i === pagination.current_page ? 'active' : ''}`;
+                pageLi.innerHTML = `<a class="page-link" href="#">${i}</a>`;
+                pageLi.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    currentPage = i;
+                    queryHistory();
+                });
+                paginationElement.appendChild(pageLi);
+            }
+            
+            // 下一页
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item ${pagination.current_page === pagination.total_pages ? 'disabled' : ''}`;
+            nextLi.innerHTML = `<a class="page-link" href="#">下一页</a>`;
+            nextLi.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (pagination.current_page < pagination.total_pages) {
+                    currentPage = pagination.current_page + 1;
+                    queryHistory();
+                }
+            });
+            paginationElement.appendChild(nextLi);
+        }
+        
+        // 更改图表类型
+        function changeChartType(type) {
+            if (!historyChart) return;
+            
+            if (type === 'area') {
+                historyChart.config.type = 'line';
+                historyChart.data.datasets.forEach(dataset => {
+                    dataset.fill = true;
+                });
+            } else {
+                historyChart.config.type = type;
+                historyChart.data.datasets.forEach(dataset => {
+                    dataset.fill = false;
+                });
+            }
+            
+            historyChart.update();
+        }
+        
+        // 表单提交事件
+        document.getElementById('query-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // 获取查询参数
+            currentQuery.clientId = document.getElementById('client-select').value;
+            currentQuery.metric = document.getElementById('metric-select').value;
+            
+            // 重置分页
+            currentPage = 1;
+            
+            // 执行查询
+            queryHistory();
+        });
+        
+        // 快速时间范围选择
+        document.querySelectorAll('input[name="quick-range"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const now = new Date();
+                let startTime;
+                
+                switch (this.id) {
+                    case 'range-1h':
+                        startTime = new Date(now.getTime() - 60 * 60 * 1000);
+                        break;
+                    case 'range-6h':
+                        startTime = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+                        break;
+                    case 'range-24h':
+                        startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                        break;
+                    case 'range-7d':
+                        startTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                        break;
+                    case 'range-30d':
+                        startTime = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                        break;
+                }
+                
+                if (startTime) {
+                    // 更新日期选择器
+                    document.getElementById('date-range')._flatpickr.setDate([startTime, now]);
+                    currentQuery.startTime = startTime;
+                    currentQuery.endTime = now;
+                }
+            });
+        });
+        
+        // 导出按钮
+        document.getElementById('export-btn').addEventListener('click', function() {
+            // 实现导出功能
+            alert('导出功能待实现');
+        });
+        
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化图表
+            initChart();
+            
+            // 加载客户端列表
+            loadClients();
+            
+            // 设置默认时间范围（最近24小时）
+            document.getElementById('range-24h').checked = true;
+            const now = new Date();
+            const startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            document.getElementById('date-range')._flatpickr.setDate([startTime, now]);
+            currentQuery.startTime = startTime;
+            currentQuery.endTime = now;
+            
+            // 执行初始查询
+            queryHistory();
+        });
+    </script>
+</body>
+</html>
